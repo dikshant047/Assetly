@@ -1,0 +1,62 @@
+// Investment Portfolio Tracker Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+ 
+ model User {
+   id        String       @id @default(cuid())
+   email     String    @unique
+   name      String
+   role      Role    @default(INVESTOR)
+   password  String 
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id])
+  
+  portfolioId String
+  transactions Transaction[]
+  createdAt DateTime  @default(now())
+   updatedAt DateTime  @updatedAt
+ }
+
+  model Portfolio {
+    id          String        @id @default(cuid())
+    name        String
+    adminId String  // Who owns/manages this portfolio (YOU)
+   users User[]    // All investors in this portfolio
+    transactions Transaction[]
+    currentValue Decimal      @default(0)
+    createdAt   DateTime   @default(now())
+    lastUpdated   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+  }
+
+  model Transaction {
+    id            String       @id @default(cuid())
+    portfolioId   String
+    userId       String
+    portfolio    Portfolio @relation(fields: [portfolioId], references: [id])
+    user          User @relation(fields: [userId], references: [id])
+    type          TransactionType
+    amount        Decimal
+    shares       Decimal
+    pricePerShare Decimal
+    date          DateTime
+    note          String?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+  }
+  enum Role {
+  ADMIN
+  INVESTOR
+}
+
+  enum TransactionType {
+   INITIAL_SETUP
+  DEPOSIT
+  WITHDRAWAL
+}
