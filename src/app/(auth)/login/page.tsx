@@ -14,8 +14,8 @@ import { TrendingUp } from "lucide-react"
 
 export default function LoginPage() {
   const [errorMessage, formAction] = useActionState<string | null, FormData>(
-  authenticate, 
-  undefined
+  authenticate,
+  null
 )
   const router = useRouter()
 
@@ -81,7 +81,7 @@ export default function LoginPage() {
 
             <div className="mt-6 text-center text-sm">
               <span className="text-muted-foreground">
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
               </span>
               <Link href="#" className="text-primary hover:underline">
                 Contact your administrator

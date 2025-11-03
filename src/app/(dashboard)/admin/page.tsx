@@ -15,6 +15,7 @@ import { PortfolioUpdateForm } from "./portolio-form"
 import {AddInvestorForm} from "./add-investor-form";
 import { RecordDepositForm } from "./record-deposit-form"
 import { prisma } from "@/lib/prisma";
+import { calculateInvestorValues } from "@/lib/calculations"
 
 export default async function AdminDashboard() {
 
@@ -26,6 +27,8 @@ export default async function AdminDashboard() {
   const totalInvested = allTransactions
     .filter(tx => tx.type === "DEPOSIT")
     .reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+    const investorValues = await calculateInvestorValues()
 
   const totalInvestors = allUsers.filter(u => u.role === "INVESTOR").length;  
 
@@ -79,19 +82,43 @@ export default async function AdminDashboard() {
         {/* Stats Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Investors
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalInvestors}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Active investors
-              </p>
-            </CardContent>
-          </Card>
+  <CardHeader>
+    <CardTitle>All Investors</CardTitle>
+    <CardDescription>
+      Current values and performance
+    </CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="space-y-4">
+      {investorValues.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No investors yet</p>
+      ) : (
+        investorValues.map((investor) => (
+          <div key={investor.id} className="border-b border-border pb-4 last:border-0">
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <p className="font-semibold">{investor.name}</p>
+                <p className="text-xs text-muted-foreground">{investor.email}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-lg">
+                  ${investor.currentValue.toFixed(2)}
+                </p>
+                <p className={`text-xs ${investor.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {investor.profit >= 0 ? '+' : ''}${investor.profit.toFixed(2)} ({investor.profitPercentage}%)
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>Invested: ${investor.invested.toFixed(2)}</span>
+              <span>Shares: {investor.shares.toFixed(2)}</span>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </CardContent>
+</Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -102,9 +129,7 @@ export default async function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">${netInvested.toFixed(2)}</div>
-              <p className="text-xs text-profit mt-1">
-                +8.2% till now 
-              </p>
+              
             </CardContent>
           </Card>
 

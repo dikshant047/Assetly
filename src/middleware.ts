@@ -35,10 +35,10 @@ console.log("🔐 Middleware:", { pathname: nextUrl.pathname, isLoggedIn, userRo
       return NextResponse.redirect(new URL("/investor", nextUrl));
     }
 
-    // Prevent admins from accessing investor routes (optional)
-    // if (isInvestorRoute && role === "ADMIN") {
-    //   return NextResponse.redirect(new URL("/admin", nextUrl));
-    // }
+    // Prevent admins from accessing investor routes
+    if (isInvestorRoute && role === "ADMIN") {
+      return NextResponse.redirect(new URL("/admin", nextUrl));
+    }
   }
 
 return NextResponse.next();

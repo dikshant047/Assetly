@@ -4,7 +4,7 @@ import { signIn } from "@/lib/auth"
 import { AuthError } from "next-auth"
 
 export async function authenticate(
-  prevState: string | undefined,
+  prevState: string | null,
   formData: FormData
 ): Promise<string | null> {
   console.log("🔵 Action called!")  // ← This should appear FIRST

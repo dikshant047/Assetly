@@ -1,17 +1,7 @@
 "use server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import{ z } from "zod";
 import bcrypt from "bcryptjs";
-
-const schema = z.object({
-    value: z.string()
-    .min(1, "Value is required")
-    .transform((val) => parseFloat(val))
-    .refine((val) => !isNaN(val) && val >= 0, {
-        message: "Value must be a valid number",
-    }),
-});
 
  
 export async function updatePortfolioValue(
@@ -117,95 +107,107 @@ export async function recordTransaction(
   formData: FormData
 ): Promise<{ message: string }> {
   try {
-
     const type = formData.get("type") as string
-       const amountString = formData.get("amount") as string;
-        const amount = parseFloat(amountString);
-        const userId = formData.get("userId") as string;  
-        const dateString = formData.get("date") as string;
-        const date = new Date(dateString);
-        const noteString = formData.get("note") as string;
-        
-        console.log("🔵 Received amount:", amount);
-        console.log("🔵 Received userId:", userId);
-        console.log("🔵 Received date:", date);
-        console.log("🔵 Received note:", noteString);
-        
+    const amountString = formData.get("amount") as string
+    const amount = parseFloat(amountString)
+    const userId = formData.get("userId") as string  
+    const dateString = formData.get("date") as string
+    const date = new Date(dateString)
+    const noteString = formData.get("note") as string
+    
+    console.log("🔵 Type:", type)
+    console.log("🔵 Amount:", amount)
+    console.log("🔵 User:", userId)
+    
     if (isNaN(amount) || amount <= 0) {
-      console.log("🔴 Invalid amount");
-      return { message: "Please enter a valid positive amount." };
+      return { message: "Please enter a valid positive amount." }
     }
     
+    // Get portfolio FIRST
+    const portfolio = await prisma.portfolio.findFirst()
+    if (!portfolio) {
+      return { message: "Portfolio not found." }
+    }
+    
+    // Get all transactions
     const allTransactions = await prisma.transaction.findMany()
 
-const portfolio = await prisma.portfolio.findFirst();
-if (!portfolio) {
-  console.log("🔴 No portfolio found");
-  return { message: "Portfolio not found." };
-}  console.log("🟡 FormData entries for deposit:")
-
-const totalShares = allTransactions.reduce((sum, tx) => {
-  return tx.type === 'WITHDRAWAL' 
-    ? sum - Number(tx.shares)
-    : sum + Number(tx.shares)
-}, 0)
- 
-
-let price: number
-let sharesForTransaction: number
-
-if (totalShares === 0) {
-  price = 1
-  const calculatedShares = amount
-  // Make negative for withdrawal
-  sharesForTransaction = type === "WITHDRAWAL" ? -calculatedShares : calculatedShares
-} else {
-  price = Number(portfolio.currentValue) / totalShares
-  const calculatedShares = amount / price
-  // Make negative for withdrawal
-  sharesForTransaction = type === "WITHDRAWAL" ? -calculatedShares : calculatedShares
-}
-     
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      console.log("🔴 User not found");
-      return { message: "User not found." };
+    // Calculate CURRENT total shares
+    // Shares are stored as POSITIVE values, type determines add/subtract
+    const totalShares = allTransactions.reduce((sum, tx) => {
+      return tx.type === 'WITHDRAWAL'
+        ? sum - Number(tx.shares)  // Subtract for withdrawals
+        : sum + Number(tx.shares)  // Add for deposits
+    }, 0)
+    
+    console.log("📊 Total shares:", totalShares)
+    console.log("📊 Current portfolio:", Number(portfolio.currentValue))
+    
+    // Calculate price and shares
+    let price: number
+    let sharesForTransaction: number
+    
+    if (totalShares === 0) {
+      // First ever deposit
+      price = 1
+      sharesForTransaction = amount
+    } else if (type === "DEPOSIT") {
+      // New deposit: use CURRENT portfolio value
+      price = Number(portfolio.currentValue) / totalShares
+      sharesForTransaction = amount / price
+      console.log("💰 Deposit - Price per share:", price)
+      console.log("📈 Adding shares:", sharesForTransaction)
+    } else {
+      // WITHDRAWAL: use CURRENT portfolio value BEFORE withdrawal
+      // Store POSITIVE shares value - calculations.ts will handle subtraction based on type
+      price = Number(portfolio.currentValue) / totalShares
+      sharesForTransaction = amount / price  // POSITIVE - let type determine direction
+      console.log("💰 Withdrawal - Price per share:", price)
+      console.log("📉 Removing shares:", sharesForTransaction)
     }
- 
+    
+    // Find user
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user) {
+      return { message: "User not found." }
+    }
+    
+    // Create transaction
     await prisma.transaction.create({
-  data: {
-    portfolioId: portfolio.id,     // ← Add this
-    userId: user.id,
-    type: type as "DEPOSIT" | "WITHDRAWAL" | "INITIAL_SETUP",  // ✅ Type assertion
-    amount: amount,
-    shares: sharesForTransaction,       // ← Add this (calculate first!)
-    pricePerShare: price,           // ← Add this (calculate first!)
-    date: date,
-    note: noteString || null
-  }
-})
-  const newValue = type === "WITHDRAWAL"
-  ? Number(portfolio.currentValue) - amount  // Subtract for withdrawal
-  : Number(portfolio.currentValue) + amount  // Add for deposit
-
-await prisma.portfolio.update({
-  where: { id: portfolio.id },
-  data: {
-    currentValue: newValue,
-    lastUpdated: new Date()
-  }
-}) 
-    console.log("✅ Deposit recorded:", amount);
-    revalidatePath("/admin");
+      data: {
+        portfolioId: portfolio.id,
+        userId: user.id,
+        type: type as "DEPOSIT" | "WITHDRAWAL",
+        amount: amount,
+        shares: sharesForTransaction,
+        pricePerShare: price,
+        date: date,
+        note: noteString || null
+      }
+    })
+    
+    // Update portfolio value
+    const newValue = type === "WITHDRAWAL"
+      ? Number(portfolio.currentValue) - amount
+      : Number(portfolio.currentValue) + amount
+    
+    console.log("💵 New portfolio value:", newValue)
+    
+    await prisma.portfolio.update({
+      where: { id: portfolio.id },
+      data: {
+        currentValue: newValue,
+        lastUpdated: new Date()
+      }
+    })
+    
+    console.log(`✅ ${type} recorded: ${amount}`)
+    revalidatePath("/admin")
     return { message: `${type === "DEPOSIT" ? "Deposit" : "Withdrawal"} recorded successfully!` }
     
-
-    
-  } 
-  catch (error) {
-    console.log("🔴 Caught error:", error);
-
-  return { message: "An error occurred while recording deposit." }
+  } catch (error) {
+    console.log("🔴 Error:", error)
+    return { message: "An error occurred." }
   }
 }
 
