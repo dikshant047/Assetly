@@ -1,18 +1,24 @@
+// middleware.ts
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export async function middleware(req) {
-  const { nextUrl, cookies } = req;
+function parseAuth(cookies: NextRequest["cookies"]) {
   const token = cookies.get("auth_token")?.value;
-  const isLoggedIn = Boolean(token);
+  const role = cookies.get("user_role")?.value || "INVESTOR";
+  return { isLoggedIn: !!token, role };
+}
 
-  const isAuthRoute = nextUrl.pathname.startsWith("/login");
-  const isAdminRoute = nextUrl.pathname.startsWith("/admin");
-  const isInvestorRoute = nextUrl.pathname.startsWith("/investor");
+export function middleware(req: NextRequest) {
+  const { nextUrl, cookies } = req;
+  const { isLoggedIn, role } = parseAuth(cookies);
+
+  const path = nextUrl.pathname;
+  const isAuthRoute = path.startsWith("/login");
+  const isAdminRoute = path.startsWith("/admin");
+  const isInvestorRoute = path.startsWith("/investor");
   const isProtectedRoute = isAdminRoute || isInvestorRoute;
 
   if (isAuthRoute && isLoggedIn) {
-    // Decode role from a lightweight cookie/JWT if needed
-    const role = cookies.get("user_role")?.value || "INVESTOR";
     const redirectUrl = role === "ADMIN" ? "/admin" : "/investor";
     return NextResponse.redirect(new URL(redirectUrl, nextUrl));
   }
@@ -21,14 +27,12 @@ export async function middleware(req) {
     return NextResponse.redirect(new URL("/login", nextUrl));
   }
 
-  if (isLoggedIn && isProtectedRoute) {
-    const role = cookies.get("user_role")?.value;
-    if (isAdminRoute && role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/investor", nextUrl));
-    }
-    if (isInvestorRoute && role === "ADMIN") {
-      return NextResponse.redirect(new URL("/admin", nextUrl));
-    }
+  if (isAdminRoute && role !== "ADMIN") {
+    return NextResponse.redirect(new URL("/investor", nextUrl));
+  }
+
+  if (isInvestorRoute && role === "ADMIN") {
+    return NextResponse.redirect(new URL("/admin", nextUrl));
   }
 
   return NextResponse.next();
