@@ -80,12 +80,12 @@ export default function LoginPage() {
             </form>
 
             <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">
-                Don&apos;t have an account?{" "}
-              </span>
-              <Link href="#" className="text-primary hover:underline">
-                Contact your administrator
-              </Link>
+              <p className="text-sm text-center text-muted-foreground mt-4">
+  Don't have an account?{" "}
+  <a href="/register" className="text-primary hover:underline">
+    Create account
+  </a>
+</p>
             </div>
           </CardContent>
         </Card>
