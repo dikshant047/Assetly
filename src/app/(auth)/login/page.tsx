@@ -2,10 +2,9 @@
 
 import { useActionState } from "react"  // ← Changed
 import { useFormStatus } from "react-dom"
-import { authenticate } from "./action"
+import { handleLogin } from "./action"
 import { useEffect } from "react"  // ← Add this
 import { useRouter } from "next/navigation"  // ← Add this
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,7 +13,7 @@ import { TrendingUp } from "lucide-react"
 
 export default function LoginPage() {
   const [errorMessage, formAction] = useActionState<string | null, FormData>(
-  authenticate,
+  handleLogin,
   null
 )
   const router = useRouter()

@@ -1,50 +1,72 @@
 "use server"
 
 import { signIn } from "@/lib/auth"
-import { AuthError } from "next-auth"
+import { cookies } from "next/headers"
+import { prisma } from "@/lib/prisma"
 
-export async function authenticate(
-  prevState: string | null,
+export async function handleLogin(
+  prevState: { message: string } | undefined,
   formData: FormData
-): Promise<string | null> {
-  console.log("🔵 Action called!")  // ← This should appear FIRST
-  
+): Promise<{ message: string }> {
+  console.log("🔵 Login action called")
+
+  const email = formData.get("email") as string
+  const password = formData.get("password") as string
+
+  console.log("🔵 Email:", email)
+  console.log("🔵 Password length:", password?.length)
+
+  if (!email || !password) {
+    return { message: "Email and password are required" }
+  }
+
   try {
-    const email = formData.get("email") as string
-    const password = formData.get("password") as string
-
-    console.log("🔵 Email:", email)
-    console.log("🔵 Password length:", password?.length)
-
     const result = await signIn("credentials", {
       email,
       password,
-      redirect: false,  // ← CRITICAL: Don't auto-redirect yet
+      redirect: false,
     })
 
     console.log("🟢 SignIn result:", result)
 
-    if (result?.error) {
-      console.log("🔴 Error from signIn:", result.error)
-      return "Invalid email or password"
+    if (!result) {
+      return { message: "Invalid credentials" }
     }
 
-    // If successful, manually redirect
-    console.log("✅ Login successful, redirecting...")
-    return null  // Success, form will handle redirect via middleware
-    
-  } catch (error) {
-    console.log("🔴 Caught error:", error)
-    
-    if (error instanceof AuthError) {
-      switch (error.type) {
-        case "CredentialsSignin":
-          return "Invalid email or password"
-        default:
-          return "Something went wrong"
-      }
+    // Fetch user to get role
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { role: true }
+    })
+
+    if (!user) {
+      return { message: "User not found" }
     }
+
+    // Set cookies for middleware
+    const cookieStore = await cookies()
     
-    return "An error occurred"
+    cookieStore.set("auth_token", "true", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: "/"
+    })
+    
+    cookieStore.set("user_role", user.role, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: "/"
+    })
+
+    console.log("✅ Login successful, cookies set, role:", user.role)
+    return { message: "success" }
+
+  } catch (error) {
+    console.error("🔴 Login error:", error)
+    return { message: "Invalid email or password" }
   }
 }
