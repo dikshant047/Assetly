@@ -2,18 +2,14 @@
 
 import { signIn } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { AuthError } from "next-auth"
 
 export async function handleLogin(
   prevState: { message: string; role?: string } | undefined,
   formData: FormData
 ): Promise<{ message: string; role?: string }> {
-  console.log("🔵 Login action called")
-
   const email = formData.get("email") as string
   const password = formData.get("password") as string
-
-  console.log("🔵 Email:", email)
-  console.log("🔵 Password length:", password?.length)
 
   if (!email || !password) {
     return { message: "Email and password are required" }
@@ -30,23 +26,25 @@ export async function handleLogin(
       return { message: "Invalid email or password" }
     }
 
-    const result = await signIn("credentials", {
+    // NextAuth v5 signIn throws error on failure, succeeds silently
+    await signIn("credentials", {
       email,
       password,
       redirect: false,
     })
 
-    console.log("🟢 SignIn result:", result)
-
-    if (!result) {
-      return { message: "Invalid credentials" }
-    }
-
-    console.log("✅ Login successful, role:", user.role)
     return { message: "success", role: user.role }
 
   } catch (error) {
-    console.error("🔴 Login error:", error)
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case "CredentialsSignin":
+          return { message: "Invalid email or password" }
+        default:
+          return { message: "Something went wrong" }
+      }
+    }
+
     return { message: "Invalid email or password" }
   }
 }
