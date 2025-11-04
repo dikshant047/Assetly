@@ -10,7 +10,7 @@ const credentialsSchema = z.object({
   password: z.string().min(6),
 });
 
-export const { handlers, auth , signIn, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
@@ -42,7 +42,6 @@ export const { handlers, auth , signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    ...authConfig.callbacks,
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -56,6 +55,39 @@ export const { handlers, auth , signIn, signOut } = NextAuth({
         session.user.role = token.role as string;
       }
       return session;
+    },
+    async authorized({ auth, request }) {
+      const { pathname } = request.nextUrl;
+      const isLoggedIn = !!auth?.user;
+      const role = auth?.user?.role;
+
+      const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register");
+      const isAdminRoute = pathname.startsWith("/admin");
+      const isInvestorRoute = pathname.startsWith("/investor");
+      const isProtectedRoute = isAdminRoute || isInvestorRoute;
+
+      // If already logged in and trying to access auth pages, redirect to dashboard
+      if (isAuthRoute && isLoggedIn) {
+        const redirectUrl = role === "ADMIN" ? "/admin" : "/investor";
+        return Response.redirect(new URL(redirectUrl, request.nextUrl));
+      }
+
+      // If not logged in and trying to access protected pages, redirect to login
+      if (isProtectedRoute && !isLoggedIn) {
+        return false; // Will redirect to signIn page
+      }
+
+      // If admin trying to access investor page, redirect to admin
+      if (isInvestorRoute && role === "ADMIN") {
+        return Response.redirect(new URL("/admin", request.nextUrl));
+      }
+
+      // If investor trying to access admin page, redirect to investor
+      if (isAdminRoute && role !== "ADMIN") {
+        return Response.redirect(new URL("/investor", request.nextUrl));
+      }
+
+      return true;
     },
   },
 });

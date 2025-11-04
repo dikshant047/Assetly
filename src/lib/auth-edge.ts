@@ -1,4 +1,3 @@
-import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 
 // Edge-compatible auth configuration (no Prisma, no bcrypt)
@@ -46,6 +45,3 @@ export const authConfig: NextAuthConfig = {
     signIn: '/login',
   },
 };
-
-// Only export auth for middleware (reduces bundle size)
-export const { auth } = NextAuth(authConfig);
