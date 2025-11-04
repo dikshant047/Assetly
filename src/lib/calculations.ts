@@ -51,19 +51,21 @@ export async function calculateInvestorValues() {
     // Calculate profit
     const profit = currentValue - netInvested
     const profitPercentage = netInvested > 0 
-      ? ((profit / netInvested) * 100).toFixed(1)
-      : "0.0"
+  ? Number(((profit / netInvested) * 100).toFixed(1))
+  : 0
 
     return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      shares: userShares,
-      invested: netInvested,
-      currentValue: currentValue,
-      profit: profit,
-      profitPercentage: profitPercentage
-    }
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  shares: Number(userShares),
+  invested: Number(netInvested),
+  currentValue: Number(currentValue),
+  profit: Number(profit),
+  profitPercentage: netInvested > 0 
+    ? Number(((profit / netInvested) * 100).toFixed(1))
+    : 0
+}
   })
 
   return investorValues
