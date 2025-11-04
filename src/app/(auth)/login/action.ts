@@ -5,9 +5,9 @@ import { cookies } from "next/headers"
 import { prisma } from "@/lib/prisma"
 
 export async function handleLogin(
-  prevState: { message: string } | undefined,
+  prevState: { message: string; role?: string } | undefined,
   formData: FormData
-): Promise<{ message: string }> {
+): Promise<{ message: string; role?: string }> {
   console.log("🔵 Login action called")
 
   const email = formData.get("email") as string
@@ -63,7 +63,7 @@ export async function handleLogin(
     })
 
     console.log("✅ Login successful, cookies set, role:", user.role)
-    return { message: "success" }
+    return { message: "success", role: user.role }
 
   } catch (error) {
     console.error("🔴 Login error:", error)

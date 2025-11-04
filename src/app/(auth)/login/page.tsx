@@ -14,10 +14,11 @@ export default function LoginPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (state?.message === "success") {
+    if (state?.message === "success" && state?.role) {
       // Small delay to ensure cookies are set
       setTimeout(() => {
-        window.location.href = "/admin" // Force full page reload
+        const redirectUrl = state.role === "ADMIN" ? "/admin" : "/investor"
+        window.location.href = redirectUrl // Force full page reload
       }, 100)
     }
   }, [state])

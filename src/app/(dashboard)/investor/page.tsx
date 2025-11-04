@@ -27,13 +27,75 @@ export default async function InvestorDashboard() {
     redirect("/login");
   }
 
+  // Check if user has been assigned to a portfolio
+  if (!user.portfolioId) {
+    return (
+      <div className="min-h-screen bg-background p-8">
+        <header className="border-b border-border bg-card">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">Investor Dashboard</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Welcome, {user.name}
+                </p>
+              </div>
+              <LogoutButton />
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto px-6 py-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Portfolio Not Assigned</CardTitle>
+              <CardDescription>
+                Your account has been created successfully. Please contact your administrator to be assigned to a portfolio.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Once assigned, you'll be able to view your investments, transactions, and performance metrics here.
+              </p>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   // Get portfolio data
   const portfolio = await prisma.portfolio.findUnique({
     where: { id: user.portfolioId }
   });
 
   if (!portfolio) {
-    return <div>Portfolio not found</div>;
+    return (
+      <div className="min-h-screen bg-background p-8">
+        <header className="border-b border-border bg-card">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">Investor Dashboard</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Welcome, {user.name}
+                </p>
+              </div>
+              <LogoutButton />
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto px-6 py-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Portfolio Not Found</CardTitle>
+              <CardDescription>
+                There was an error loading your portfolio. Please contact support.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </main>
+      </div>
+    );
   }
 
   // Get all transactions for this user
