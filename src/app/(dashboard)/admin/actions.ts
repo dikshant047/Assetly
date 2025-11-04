@@ -110,25 +110,25 @@ export async function recordTransaction(
     const type = formData.get("type") as string
     const amountString = formData.get("amount") as string
     const amount = parseFloat(amountString)
-    const userId = formData.get("userId") as string  
+    const userId = formData.get("userId") as string
     const dateString = formData.get("date") as string
     const date = new Date(dateString)
     const noteString = formData.get("note") as string
-    
+
     console.log("🔵 Type:", type)
     console.log("🔵 Amount:", amount)
     console.log("🔵 User:", userId)
-    
+
     if (isNaN(amount) || amount <= 0) {
       return { message: "Please enter a valid positive amount." }
     }
-    
+
     // Get portfolio FIRST
     const portfolio = await prisma.portfolio.findFirst()
     if (!portfolio) {
       return { message: "Portfolio not found." }
     }
-    
+
     // Get all transactions
     const allTransactions = await prisma.transaction.findMany()
 
@@ -139,14 +139,34 @@ export async function recordTransaction(
         ? sum - Number(tx.shares)  // Subtract for withdrawals
         : sum + Number(tx.shares)  // Add for deposits
     }, 0)
-    
+
     console.log("📊 Total shares:", totalShares)
     console.log("📊 Current portfolio:", Number(portfolio.currentValue))
-    
+
+    // If withdrawal, check if user has enough invested
+    if (type === "WITHDRAWAL") {
+      const userTransactions = allTransactions.filter(tx => tx.userId === userId)
+      const userTotalInvested = userTransactions
+        .filter(tx => tx.type === 'DEPOSIT')
+        .reduce((sum, tx) => sum + Number(tx.amount), 0)
+      const userTotalWithdrawn = userTransactions
+        .filter(tx => tx.type === 'WITHDRAWAL')
+        .reduce((sum, tx) => sum + Number(tx.amount), 0)
+      const userNetInvested = userTotalInvested - userTotalWithdrawn
+
+      console.log("💰 User net invested:", userNetInvested)
+      console.log("💸 Withdrawal amount:", amount)
+
+      // Check if withdrawal would make net invested negative
+      if (amount > userNetInvested + 0.01) { // Add small buffer for rounding
+        return { message: `Cannot withdraw more than invested. Current net investment: $${userNetInvested.toFixed(2)}` }
+      }
+    }
+
     // Calculate price and shares
     let price: number
     let sharesForTransaction: number
-    
+
     if (totalShares === 0) {
       // First ever deposit
       price = 1
@@ -165,13 +185,13 @@ export async function recordTransaction(
       console.log("💰 Withdrawal - Price per share:", price)
       console.log("📉 Removing shares:", sharesForTransaction)
     }
-    
+
     // Find user
     const user = await prisma.user.findUnique({ where: { id: userId } })
     if (!user) {
       return { message: "User not found." }
     }
-    
+
     // Create transaction
     await prisma.transaction.create({
       data: {
@@ -185,14 +205,14 @@ export async function recordTransaction(
         note: noteString || null
       }
     })
-    
+
     // Update portfolio value
     const newValue = type === "WITHDRAWAL"
-      ? Number(portfolio.currentValue) - amount
+      ? Math.max(0, Number(portfolio.currentValue) - amount)  // Prevent negative portfolio value
       : Number(portfolio.currentValue) + amount
-    
+
     console.log("💵 New portfolio value:", newValue)
-    
+
     await prisma.portfolio.update({
       where: { id: portfolio.id },
       data: {
@@ -200,11 +220,11 @@ export async function recordTransaction(
         lastUpdated: new Date()
       }
     })
-    
+
     console.log(`✅ ${type} recorded: ${amount}`)
     revalidatePath("/admin")
     return { message: `${type === "DEPOSIT" ? "Deposit" : "Withdrawal"} recorded successfully!` }
-    
+
   } catch (error) {
     console.log("🔴 Error:", error)
     return { message: "An error occurred." }

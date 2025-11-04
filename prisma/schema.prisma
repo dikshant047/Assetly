@@ -14,10 +14,10 @@ datasource db {
    email     String    @unique
    name      String
    role      Role    @default(INVESTOR)
-   password  String 
-  portfolio   Portfolio @relation(fields: [portfolioId], references: [id])
-  
-  portfolioId String
+   password  String
+  portfolio   Portfolio? @relation(fields: [portfolioId], references: [id])
+
+  portfolioId String?
   transactions Transaction[]
   createdAt DateTime  @default(now())
    updatedAt DateTime  @updatedAt
