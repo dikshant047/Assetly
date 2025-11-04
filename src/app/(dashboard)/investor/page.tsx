@@ -13,9 +13,14 @@ import { redirect } from "next/navigation";
 export default async function InvestorDashboard() {
   const session = await auth();
 
-  // Ensure user is logged in and is an investor
+  // Ensure user is logged in
   if (!session?.user?.id) {
     redirect("/login");
+  }
+
+  // Redirect admin to admin page
+  if (session.user.role === "ADMIN") {
+    redirect("/admin");
   }
 
   // Get the logged-in user's data

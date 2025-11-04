@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+
 import {
-  Users,
+
   TrendingUp,
   DollarSign,
   Activity,
@@ -10,16 +10,26 @@ import {
 import { auth } from "@/lib/auth";
 import { LogoutButton } from "@/components/logout_button";
 import { getPortfolio } from "@/lib/queries";
-import { updatePortfolioValue } from "./actions"
-import { PortfolioUpdateForm } from "./portolio-form"
+ import { PortfolioUpdateForm } from "./portolio-form"
 import {AddInvestorForm} from "./add-investor-form";
 import { RecordDepositForm } from "./record-deposit-form"
 import { prisma } from "@/lib/prisma";
 import { calculateInvestorValues } from "@/lib/calculations"
+import { redirect } from "next/navigation";
 
 export default async function AdminDashboard() {
 
   const session = await auth();
+
+  // Redirect if not logged in
+  if (!session?.user) {
+    redirect("/login");
+  }
+
+  // Redirect if not admin
+  if (session.user.role !== "ADMIN") {
+    redirect("/investor");
+  }
   const portfolio = await getPortfolio();
   
   const allUsers = await prisma.user.findMany();

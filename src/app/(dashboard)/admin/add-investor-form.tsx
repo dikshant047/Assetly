@@ -5,8 +5,7 @@ import { createInvestor } from "./actions";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
+ 
 
 export function AddInvestorForm(){
     const[ state, formAction] = useActionState(createInvestor, undefined)
