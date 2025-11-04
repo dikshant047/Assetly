@@ -1,7 +1,6 @@
 "use server"
 
 import { signIn } from "@/lib/auth"
-import { cookies } from "next/headers"
 import { prisma } from "@/lib/prisma"
 
 export async function handleLogin(
@@ -21,6 +20,16 @@ export async function handleLogin(
   }
 
   try {
+    // Fetch user to get role before signing in
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { role: true }
+    })
+
+    if (!user) {
+      return { message: "Invalid email or password" }
+    }
+
     const result = await signIn("credentials", {
       email,
       password,
@@ -33,36 +42,7 @@ export async function handleLogin(
       return { message: "Invalid credentials" }
     }
 
-    // Fetch user to get role
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: { role: true }
-    })
-
-    if (!user) {
-      return { message: "User not found" }
-    }
-
-    // Set cookies for middleware
-    const cookieStore = await cookies()
-    
-    cookieStore.set("auth_token", "true", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: "/"
-    })
-    
-    cookieStore.set("user_role", user.role, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: "/"
-    })
-
-    console.log("✅ Login successful, cookies set, role:", user.role)
+    console.log("✅ Login successful, role:", user.role)
     return { message: "success", role: user.role }
 
   } catch (error) {
